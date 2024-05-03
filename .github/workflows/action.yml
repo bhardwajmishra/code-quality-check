@@ -1,0 +1,61 @@
+name: Code Quality Check
+
+on:
+  push:
+    branches:
+      - uat
+
+jobs:
+  code-quality:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 7.4
+      
+      - name: check php version
+        run: php -v
+        
+      - name: composer install --ansi
+        run: composer install --ansi
+
+      - name: composer validate 
+        run: composer validate 
+
+      - name: security checker for composer.lock
+        run: ./vendor/bin/security-checker security:check composer.lock
+
+      - name: Download PHP_CodeSniffer
+        run: |
+          wget -O phpcs.phar https://squizlabs.github.io/PHP_CodeSniffer/phpcs.phar
+          chmod +x phpcs.phar
+          mv phpcs.phar phpcs
+
+      - name: Install PHPcs
+        run: |
+          composer require drupal/coder --dev
+          ./phpcs --config-set installed_paths vendor/drupal/coder/coder_sniffer
+      
+      - name: Drupal code quality check
+        run: ./vendor/bin/phpcs --colors -p --standard=Drupal,DrupalPractice --extensions=php,module,inc,install,test,profile,theme,info,txt --ignore=web/themes/*/dist/,web/themes/*/node_modules web/modules/custom web/themes/custom
+
+      - name: Set node version
+        uses: actions/setup-node@v4
+        with:
+          node-version: '12.x'
+
+      - name: check node version
+        run: node -v
+
+      - name: JS code quality check 
+        run: |
+          cd ./web/themes/custom/loaded_production_music 
+          npm install
+          npm install gulp-eslint --save-dev 
+          gulp
